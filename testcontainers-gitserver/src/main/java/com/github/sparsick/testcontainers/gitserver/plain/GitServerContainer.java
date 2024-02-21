@@ -147,6 +147,7 @@ public class GitServerContainer extends GenericContainer<GitServerContainer> {
                 execInContainer("chown", "-R", "git:git", "/srv");
             } else {
                 execInContainer("mkdir", "-p", gitRepoPath);
+                //execInContainer("git", "config", "--global", "init.defaultBranch", "main");
                 execInContainer("git", "init", "--bare", gitRepoPath);
                 execInContainer("chown", "-R", "git:git", "/srv");
             }

@@ -8,6 +8,7 @@ import com.jcraft.jsch.Session;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.transport.ssh.jsch.JschConfigSessionFactory;
@@ -30,6 +31,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -44,10 +46,27 @@ public class GitServerContainerTest {
     private File tempDir;
 
 
-    static Stream<Arguments> publicKeySupportedVersions () {
+    static Stream<Arguments> publicKeySupportedVersions() {
         return Arrays.stream(GitServerVersions.values())
-            .filter(v -> !(v == GitServerVersions.V2_36 || v == GitServerVersions.V2_34_2 || v == GitServerVersions.V2_34))
-            .map(Arguments::of);
+                .filter(v -> !(v == GitServerVersions.V2_36 || v == GitServerVersions.V2_34_2 || v == GitServerVersions.V2_34))
+                .map(Arguments::of);
+    }
+
+    @Test
+    void setsDefaultBranchToMain() throws Exception {
+        var container = new GitServerContainer(LATEST_GIT_SERVER_VERSION).withGitRepo("testRepoName");
+
+        container.start();
+
+        var result = Git.lsRemoteRepository()
+                .setRemote(container.getGitRepoURIAsSSH().toString())
+                .setTransportConfigCallback(GitServerContainerTest::configureWithPasswordAndNoHostKeyChecking)
+                .call()
+                .stream()
+                .map(Ref::getName)
+                .toList();
+
+        assertThat(result).containsExactly("main");
     }
 
     @Test
@@ -108,7 +127,7 @@ public class GitServerContainerTest {
 
         URI gitRepoURI = containerUnderTest.getGitRepoURIAsSSH();
         var gitPort = containerUnderTest.getMappedPort(22);
-        assertThat(gitRepoURI.toString()).isEqualTo("ssh://git@"+ containerUnderTest.getHost() + ":" + gitPort + "/srv/git/testRepoName.git");
+        assertThat(gitRepoURI.toString()).isEqualTo("ssh://git@" + containerUnderTest.getHost() + ":" + gitPort + "/srv/git/testRepoName.git");
     }
 
     @Test
@@ -194,7 +213,6 @@ public class GitServerContainerTest {
                         .call()
         );
     }
-
 
 
     @ParameterizedTest
